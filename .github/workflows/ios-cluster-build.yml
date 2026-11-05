@@ -1,0 +1,57 @@
+name: Build PrivateLM iPhone cluster worker
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-cluster-build
+  cancel-in-progress: false
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: true
+      - name: Check Apple Silicon and record source
+        run: |
+          test "$(uname -m)" = arm64
+          git rev-parse HEAD | tee source-commit.txt
+          git submodule status --recursive | tee submodules.txt
+          xcodebuild -version
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install native build tools
+        run: |
+          for tool in cmake ninja bazelisk git-lfs; do
+            brew list "$tool" >/dev/null 2>&1 || brew install "$tool"
+          done
+          flutter --version | tee flutter-version.txt
+      - name: Build matching llama CPU Metal RPC engine
+        run: bash local_plugins/llama_flutter_android/scripts/build_llama_ios.sh
+      - name: Build LiteRT iOS frameworks
+        run: bash local_plugins/flutter_litert_lm/scripts/build_ios_frameworks.sh
+      - name: Resolve dependencies and build unsigned device app
+        run: |
+          flutter pub get
+          flutter build ios --release --no-codesign
+      - name: Package for local signing
+        run: |
+          mkdir -p artifact/Payload
+          cp -R build/ios/iphoneos/Runner.app artifact/Payload/
+          cp source-commit.txt submodules.txt flutter-version.txt artifact/
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' artifact/Payload/Runner.app/Info.plist | tee artifact/app-version.txt
+          cd artifact
+          ditto -c -k --keepParent Payload PrivateLM-1.0.7-cluster-unsigned.ipa
+          shasum -a 256 PrivateLM-1.0.7-cluster-unsigned.ipa > SHA256SUMS.txt
+          rm -rf Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PrivateLM-iPhone-cluster-unsigned
+          path: artifact/
+          if-no-files-found: error
+          retention-days: 7
