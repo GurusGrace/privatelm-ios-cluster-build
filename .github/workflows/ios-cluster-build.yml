@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
@@ -35,6 +35,14 @@ jobs:
         run: bash local_plugins/llama_flutter_android/scripts/build_llama_ios.sh
       - name: Build LiteRT iOS frameworks
         run: bash local_plugins/flutter_litert_lm/scripts/build_ios_frameworks.sh
+      - name: Preserve compiled native engines for diagnosis
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-ios-engines
+          path: |
+            local_plugins/llama_flutter_android/ios/llama_ios/
+            local_plugins/flutter_litert_lm/ios/Frameworks/
+          retention-days: 7
       - name: Resolve dependencies and build unsigned device app
         run: |
           flutter pub get
