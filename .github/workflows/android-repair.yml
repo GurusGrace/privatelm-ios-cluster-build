@@ -36,7 +36,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y glslc
-          sdkmanager "ndk;27.0.12077973"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973"
           cp /usr/bin/glslc "$ANDROID_HOME/ndk/27.0.12077973/shader-tools/linux-x86_64/glslc"
           glslc --version
       - run: flutter pub get
