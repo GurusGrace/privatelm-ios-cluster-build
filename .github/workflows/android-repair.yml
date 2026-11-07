@@ -32,6 +32,13 @@ jobs:
           p=Path('android/app/build.gradle.kts')
           s=p.read_text().replace('applicationId = "com.orailnoor.privatelm"','applicationId = "com.orailnoor.privatelm.repair"')
           p.write_text(s)
+      - name: Install current shader compiler
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y glslc
+          sdkmanager "ndk;27.0.12077973"
+          cp /usr/bin/glslc "$ANDROID_HOME/ndk/27.0.12077973/shader-tools/linux-x86_64/glslc"
+          glslc --version
       - run: flutter pub get
       - run: flutter build apk --debug --target-platform android-arm64
       - uses: actions/upload-artifact@v4
